@@ -115,18 +115,7 @@ return {
   -- UI
   {
     "nvim-lualine/lualine.nvim",
-    opts = {
-      sections = {
-        lualine_z = {
-          {
-            function()
-              local ok, opencode = pcall(require, "opencode")
-              return ok and opencode.statusline() or ""
-            end,
-          },
-        },
-      },
-    },
+    opts = {},
   },
   "cbochs/grapple.nvim",
 
@@ -159,7 +148,7 @@ return {
   {
     "MeanderingProgrammer/render-markdown.nvim",
     opts = {},
-    ft = { "markdown" },
+    ft = { "markdown", "codecompanion" },
   },
 
   -- Key popup
@@ -278,72 +267,90 @@ return {
     },
   },
 
-  -- opencode
+  -- snacks.nvim —— 提供 picker / input 等 UI 能力
+  -- （原先作为 opencode 的依赖被引入，opencode 删除后提升为独立插件；
+  --   文件查找键位 <leader>ff/fg/fb 与 CodeCompanion 历史选择器都依赖它）
   {
-    "nickjvandyke/opencode.nvim",
-    version = "*",
+    "folke/snacks.nvim",
+    priority = 1000,
     lazy = false,
+    opts = {
+      input = {},
+      picker = {},
+    },
+  },
+
+  -- 补全引擎：blink.cmp
+  -- 为 LSP、代码片段、路径、缓冲区提供自动补全；
+  -- 同时驱动 CodeCompanion 聊天里的 / # @ \ 补全菜单
+  {
+    "saghen/blink.cmp",
+    version = "1.*", -- 使用发布版，自动下载预编译的 fuzzy 二进制
+    event = "InsertEnter",
+    dependencies = { "rafamadriz/friendly-snippets" },
+    opts = {
+      keymap = {
+        preset = "super-tab", -- Tab 接受/跳转，S-Tab 上一项，<C-space> 手动唤出，<C-e> 关闭
+        ["<C-k>"] = { "fallback" }, -- 让出 <C-k>，保留你已有的片段跳转键位
+      },
+      appearance = { nerd_font_variant = "mono" },
+      completion = {
+        documentation = { auto_show = true, auto_show_delay_ms = 200 },
+        menu = { border = "rounded" },
+      },
+      cmdline = { enabled = false }, -- 命令行交给 noice，避免冲突
+      sources = {
+        default = { "lsp", "snippets", "path", "buffer" },
+        per_filetype = {
+          codecompanion = { "codecompanion" }, -- 启用 CodeCompanion 补全（兼容所有版本）
+        },
+      },
+      fuzzy = { implementation = "prefer_rust_with_warning" },
+    },
+    opts_extend = { "sources.default" },
+  },
+
+  -- Kiro CLI —— 通过 codecompanion.nvim 的 ACP 适配器集成
+  {
+    "olimorris/codecompanion.nvim",
+    version = "^19.0.0",
     dependencies = {
-      {
-        "folke/snacks.nvim",
-        opts = {
-          input = {},
-          picker = {
-            actions = {
-              opencode_send = function(...)
-                return require("opencode").snacks_picker_send(...)
-              end,
-            },
-            win = {
-              input = {
-                keys = {
-                  ["<a-a>"] = { "opencode_send", mode = { "n", "i" } },
-                },
-              },
-            },
+      "nvim-lua/plenary.nvim",
+      "nvim-treesitter/nvim-treesitter",
+      "ravitemer/codecompanion-history.nvim", -- 聊天历史：保存 / 浏览 / 恢复
+    },
+    opts = {
+      -- 把 kiro 适配器设为聊天与内联改写的默认
+      -- kiro 适配器底层执行 `kiro-cli acp`，复用终端已登录的认证，无需 API key
+      interactions = {
+        chat = { adapter = "kiro" },
+        inline = { adapter = "kiro" },
+      },
+      extensions = {
+        history = {
+          enabled = true,
+          opts = {
+            keymap = "gh",              -- 聊天缓冲区内打开历史浏览器
+            save_chat_keymap = "sc",    -- 手动保存当前聊天
+            auto_save = true,           -- 自动保存聊天
+            continue_last_chat = false, -- 不在打开聊天时自动载入上一次对话
+            picker = "snacks",          -- 使用已安装的 snacks.nvim 作为选择器
+            auto_generate_title = true, -- 自动为聊天生成标题
           },
         },
       },
     },
-    init = function()
-      vim.g.opencode_opts = {
-        lsp = { enabled = true },
-      }
-      vim.api.nvim_create_autocmd("User", {
-        pattern = "OpencodeEvent:*",
-        callback = function(args)
-          local event = args.data.event
-          if event.type == "session.idle" then
-            vim.notify("opencode 完成回复")
-          end
-        end,
-      })
-      vim.o.autoread = true
-      vim.keymap.set("n", "+", "<C-a>", { desc = "Increment", noremap = true })
-      vim.keymap.set("n", "-", "<C-x>", { desc = "Decrement", noremap = true })
-    end,
-    keys = {
-      { "<C-a>", function() require("opencode").ask("@this: ", { submit = true }) end, mode = { "n", "x" }, desc = "Ask opencode" },
-      { "<C-x>", function() require("opencode").select() end, mode = { "n", "x" }, desc = "Select opencode" },
-      { "<C-t>", function() require("opencode").toggle() end, mode = { "n", "t" }, desc = "Toggle opencode" },
-      { "go", function() return require("opencode").operator("@this ") end, mode = { "n", "x" }, expr = true, desc = "Add range" },
-      { "goo", function() return require("opencode").operator("@this ") .. "_" end, expr = true, desc = "Add line" },
-    },
-  },
-
-  -- Kiro CLI —— 官方通过 ACP (Agent Client Protocol) 集成，用 agentic.nvim 作为客户端
-  {
-    "carlos-algms/agentic.nvim",
-    opts = {
-      -- 内置 provider "kiro-acp"，底层运行 `kiro-cli acp`
-      -- 认证复用终端里已登录的 Kiro，无需 API key
-      provider = "kiro-acp",
+    cmd = {
+      "CodeCompanion",
+      "CodeCompanionChat",
+      "CodeCompanionActions",
+      "CodeCompanionCmd",
     },
     keys = {
-      { "<leader>kk", function() require("agentic").toggle() end,                        mode = { "n", "v" }, desc = "Kiro: 切换聊天" },
-      { "<leader>kn", function() require("agentic").new_session() end,                   mode = { "n", "v" }, desc = "Kiro: 新会话" },
-      { "<leader>ka", function() require("agentic").add_selection_or_file_to_context() end, mode = { "n", "v" }, desc = "Kiro: 添加文件/选区到上下文" },
-      { "<leader>kr", function() require("agentic").restore_session() end,               desc = "Kiro: 恢复会话" },
+      -- 官方推荐键位（https://codecompanion.olimorris.dev getting-started）
+      { "<C-a>",          "<cmd>CodeCompanionActions<CR>",     mode = { "n", "v" }, desc = "CodeCompanion: 动作面板 (Actions)" },
+      { "<LocalLeader>a", "<cmd>CodeCompanionChat Toggle<CR>", mode = { "n", "v" }, desc = "CodeCompanion: 切换聊天 (Toggle Chat)" },
+      { "ga",             "<cmd>CodeCompanionChat Add<CR>",    mode = { "v" },      desc = "CodeCompanion: 添加选区到聊天 (Add)" },
     },
   },
 }

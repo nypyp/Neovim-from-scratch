@@ -73,3 +73,8 @@ snacks_map("n", "<leader>fg", function() require("snacks").picker.grep() end, { 
 snacks_map("n", "<leader>fb", function() require("snacks").picker.buffers() end, { desc = "Buffers" })
 snacks_map("n", "<leader>fh", function() require("snacks").picker.help() end, { desc = "Help" })
 snacks_map("n", "<leader>fr", function() require("snacks").picker.recent() end, { desc = "Recent Files" })
+
+-- 数字加减：+ 增大 / - 减小
+-- （<C-a>/<C-x> 已让给 CodeCompanion Actions，改用 +/- 保持顺手）
+vim.keymap.set("n", "+", "<C-a>", { desc = "Increment number", noremap = true })
+vim.keymap.set("n", "-", "<C-x>", { desc = "Decrement number", noremap = true })

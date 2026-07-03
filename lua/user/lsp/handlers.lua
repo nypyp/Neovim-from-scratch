@@ -61,10 +61,10 @@ vim.api.nvim_create_autocmd("LspAttach", {
     end, opts)
     vim.keymap.set("n", "<leader>q", vim.diagnostic.setloclist, opts)
 
-    -- Enable built-in LSP completion
-    if client:supports_method("textDocument/completion") then
-      vim.lsp.completion.enable(true, client.id, bufnr, { autotrigger = true })
-    end
+    -- 补全交给 blink.cmp（不再使用内置自动补全，避免两个菜单同时弹出）
+    -- if client:supports_method("textDocument/completion") then
+    --   vim.lsp.completion.enable(true, client.id, bufnr, { autotrigger = true })
+    -- end
 
     -- :Format command
     vim.api.nvim_buf_create_user_command(bufnr, "Format", function()
@@ -73,16 +73,19 @@ vim.api.nvim_create_autocmd("LspAttach", {
   end,
 })
 
--- LSP capabilities for nvim-cmp
+-- LSP capabilities（由 blink.cmp 提供）
 local M = {}
 
-local status_ok, cmp_nvim_lsp = pcall(require, "cmp_nvim_lsp")
-if status_ok then
-  -- Apply as global default so all servers pick it up
-  vim.lsp.config("*", {
-    capabilities = cmp_nvim_lsp.default_capabilities(),
-  })
-  M.capabilities = cmp_nvim_lsp.default_capabilities()
+local caps = vim.lsp.protocol.make_client_capabilities()
+local ok_blink, blink = pcall(require, "blink.cmp")
+if ok_blink then
+  caps = blink.get_lsp_capabilities(caps)
 end
+
+-- 作为全局默认，所有 LSP server 都会继承
+vim.lsp.config("*", {
+  capabilities = caps,
+})
+M.capabilities = caps
 
 return M

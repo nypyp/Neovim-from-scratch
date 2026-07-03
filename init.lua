@@ -11,7 +11,7 @@ end
 vim.opt.rtp:prepend(lazypath)
 
 vim.g.mapleader = " "
-vim.g.maplocalleader = " "
+vim.g.maplocalleader = "\\" -- LocalLeader 用反斜杠，供 CodeCompanion 官方 <LocalLeader>a 等键位使用
 
 require("lazy").setup("plugins")
 
