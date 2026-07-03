@@ -146,6 +146,11 @@ return {
       filesystem = {
         follow_current_file = { enabled = true },
         hijack_netrw_behavior = "open_current",
+        filtered_items = {
+          visible = true,        -- 显示隐藏文件/点文件
+          hide_dotfiles = false, -- 不隐藏 .xxx 文件
+          hide_gitignore = false,
+        },
       },
     },
   },
