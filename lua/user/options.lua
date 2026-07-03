@@ -44,11 +44,9 @@ local options = {
 
 vim.opt.shortmess:append "c"
 
-vim.schedule(function()
-  for k, v in pairs(options) do
-    vim.opt[k] = v
-  end
-end)
+for k, v in pairs(options) do
+  vim.opt[k] = v
+end
 
 -- 确保全局状态栏始终生效（themery 等插件切换主题后可能重置此选项）
 -- 用 vim.schedule 延迟执行，使得 colorscheme 插件的所有初始化代码先跑完，再覆盖 laststatus

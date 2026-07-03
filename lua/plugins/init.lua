@@ -321,19 +321,6 @@ return {
       vim.o.autoread = true
       vim.keymap.set("n", "+", "<C-a>", { desc = "Increment", noremap = true })
       vim.keymap.set("n", "-", "<C-x>", { desc = "Decrement", noremap = true })
-      -- Patch server/init.lua when installed
-      local path = vim.fn.stdpath("data") .. "/lazy/opencode.nvim/lua/opencode/server/init.lua"
-      local f = io.open(path, "r")
-      if f then
-        local content = f:read("*a")
-        f:close()
-        if content:find("vim%.schedule_wrap%(self%.disconnect%)") then
-          content = content:gsub("vim%.schedule_wrap%(self%.disconnect%)", "vim.schedule_wrap(function() self:disconnect() end)")
-          f = io.open(path, "w")
-          f:write(content)
-          f:close()
-        end
-      end
     end,
     keys = {
       { "<C-a>", function() require("opencode").ask("@this: ", { submit = true }) end, mode = { "n", "x" }, desc = "Ask opencode" },
@@ -341,6 +328,22 @@ return {
       { "<C-t>", function() require("opencode").toggle() end, mode = { "n", "t" }, desc = "Toggle opencode" },
       { "go", function() return require("opencode").operator("@this ") end, mode = { "n", "x" }, expr = true, desc = "Add range" },
       { "goo", function() return require("opencode").operator("@this ") .. "_" end, expr = true, desc = "Add line" },
+    },
+  },
+
+  -- Kiro CLI —— 官方通过 ACP (Agent Client Protocol) 集成，用 agentic.nvim 作为客户端
+  {
+    "carlos-algms/agentic.nvim",
+    opts = {
+      -- 内置 provider "kiro-acp"，底层运行 `kiro-cli acp`
+      -- 认证复用终端里已登录的 Kiro，无需 API key
+      provider = "kiro-acp",
+    },
+    keys = {
+      { "<leader>kk", function() require("agentic").toggle() end,                        mode = { "n", "v" }, desc = "Kiro: 切换聊天" },
+      { "<leader>kn", function() require("agentic").new_session() end,                   mode = { "n", "v" }, desc = "Kiro: 新会话" },
+      { "<leader>ka", function() require("agentic").add_selection_or_file_to_context() end, mode = { "n", "v" }, desc = "Kiro: 添加文件/选区到上下文" },
+      { "<leader>kr", function() require("agentic").restore_session() end,               desc = "Kiro: 恢复会话" },
     },
   },
 }
