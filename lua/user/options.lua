@@ -39,7 +39,7 @@ local options = {
   linebreak = true,                        -- companion to wrap, don't split words
   scrolloff = 8,                           -- is one of my fav
   sidescrolloff = 8,
-  guifont = "monospace:h17",               -- the font used in graphical neovim applications
+  guifont = "Maple Mono NF CN:h17",        -- the font used in graphical neovim applications
 }
 
 vim.opt.shortmess:append "c"
