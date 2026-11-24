@@ -115,7 +115,18 @@ return {
   -- UI
   {
     "nvim-lualine/lualine.nvim",
-    opts = {},
+    opts = {
+      sections = {
+        -- 官方 opencode.nvim 集成：状态栏显示已连接的 OpenCode 服务与状态
+        lualine_z = {
+          {
+            function()
+              return require("opencode").statusline()
+            end,
+          },
+        },
+      },
+    },
   },
   "cbochs/grapple.nvim",
 
@@ -148,14 +159,20 @@ return {
   {
     "MeanderingProgrammer/render-markdown.nvim",
     opts = {},
-    ft = { "markdown", "codecompanion" },
+    ft = { "markdown" },
   },
 
   -- Key popup
   {
     "folke/which-key.nvim",
     event = "VeryLazy",
-    opts = {},
+    opts = {
+      spec = {
+        { "<leader>a", group = "OpenCode" },
+        { "<leader>f", group = "Find" },
+        { "gr", group = "LSP" },
+      },
+    },
   },
 
   -- Modern cmdline / notification UI
@@ -186,8 +203,8 @@ return {
     lazy = true,
     dependencies = { "nvim-tree/nvim-web-devicons" },
     keys = {
-      { "<leader>a", "<cmd>AerialToggle right<CR>", desc = "Toggle outline (right)" },
-      { "<leader>A", "<cmd>AerialToggle left<CR>", desc = "Toggle outline (left)" },
+      { "<leader>o", "<cmd>AerialToggle right<CR>", desc = "Toggle outline (right)" },
+      { "<leader>O", "<cmd>AerialToggle left<CR>", desc = "Toggle outline (left)" },
     },
     opts = {
       layout = {
@@ -263,13 +280,13 @@ return {
       livePreview = true,
     },
     keys = {
-      { "<leader>c", "<cmd>Themery<CR>", desc = "Theme picker" },
+      { "<leader>t", "<cmd>Themery<CR>", desc = "Theme picker" },
     },
   },
 
   -- snacks.nvim —— 提供 picker / input 等 UI 能力
   -- （原先作为 opencode 的依赖被引入，opencode 删除后提升为独立插件；
-  --   文件查找键位 <leader>ff/fg/fb 与 CodeCompanion 历史选择器都依赖它）
+  --   文件查找键位 <leader>ff/fg/fb 依赖它）
   {
     "folke/snacks.nvim",
     priority = 1000,
@@ -282,7 +299,7 @@ return {
 
   -- 补全引擎：blink.cmp
   -- 为 LSP、代码片段、路径、缓冲区提供自动补全；
-  -- 同时驱动 CodeCompanion 聊天里的 / # @ \ 补全菜单
+  -- 同时驱动 OpenCode Ask 输入框的补全菜单
   {
     "saghen/blink.cmp",
     version = "1.*", -- 使用发布版，自动下载预编译的 fuzzy 二进制
@@ -302,7 +319,11 @@ return {
       sources = {
         default = { "lsp", "snippets", "path", "buffer" },
         per_filetype = {
-          codecompanion = { "codecompanion" }, -- 启用 CodeCompanion 补全（兼容所有版本）
+          opencode_ask = { "lsp", "buffer" },   -- OpenCode Ask 输入框补全（配合 snacks.input）
+        },
+        providers = {
+          -- 官方 opencode.nvim 集成：buffer 补全与 LSP 并列显示（默认只在 LSP 无结果时兜底）
+          lsp = { fallbacks = {} },
         },
       },
       fuzzy = { implementation = "prefer_rust_with_warning" },
@@ -310,47 +331,19 @@ return {
     opts_extend = { "sources.default" },
   },
 
-  -- Kiro CLI —— 通过 codecompanion.nvim 的 ACP 适配器集成
+  -- OpenCode —— nvim ↔ opencode 的桥（自动连接共享服务，找不到时拉起集成终端）
   {
-    "olimorris/codecompanion.nvim",
-    version = "^19.0.0",
-    dependencies = {
-      "nvim-lua/plenary.nvim",
-      "nvim-treesitter/nvim-treesitter",
-      "ravitemer/codecompanion-history.nvim", -- 聊天历史：保存 / 浏览 / 恢复
-    },
-    opts = {
-      -- 把 kiro 适配器设为聊天与内联改写的默认
-      -- kiro 适配器底层执行 `kiro-cli acp`，复用终端已登录的认证，无需 API key
-      interactions = {
-        chat = { adapter = "kiro" },
-        inline = { adapter = "kiro" },
-      },
-      extensions = {
-        history = {
-          enabled = true,
-          opts = {
-            keymap = "gh",              -- 聊天缓冲区内打开历史浏览器
-            save_chat_keymap = "sc",    -- 手动保存当前聊天
-            auto_save = true,           -- 自动保存聊天
-            continue_last_chat = false, -- 不在打开聊天时自动载入上一次对话
-            picker = "snacks",          -- 使用已安装的 snacks.nvim 作为选择器
-            auto_generate_title = true, -- 自动为聊天生成标题
-          },
-        },
-      },
-    },
-    cmd = {
-      "CodeCompanion",
-      "CodeCompanionChat",
-      "CodeCompanionActions",
-      "CodeCompanionCmd",
-    },
-    keys = {
-      -- 官方推荐键位（https://codecompanion.olimorris.dev getting-started）
-      { "<C-a>",          "<cmd>CodeCompanionActions<CR>",     mode = { "n", "v" }, desc = "CodeCompanion: 动作面板 (Actions)" },
-      { "<LocalLeader>a", "<cmd>CodeCompanionChat Toggle<CR>", mode = { "n", "v" }, desc = "CodeCompanion: 切换聊天 (Toggle Chat)" },
-      { "ga",             "<cmd>CodeCompanionChat Add<CR>",    mode = { "v" },      desc = "CodeCompanion: 添加选区到聊天 (Add)" },
-    },
+    "nickjvandyke/opencode.nvim",
+    config = function()
+      ---@type opencode.Opts
+      vim.g.opencode_opts = {}
+
+      -- 官方推荐 <C-a>/<C-x> 会覆盖 Vim 数字增减，按语义体系改入 <leader>a* 组
+      vim.keymap.set({ "n", "x" }, "<leader>aa", function() require("opencode").ask("@this: ") end, { desc = "OpenCode: 提问 (Ask)" })
+      vim.keymap.set({ "n", "x" }, "<leader>as", function() require("opencode").select() end, { desc = "OpenCode: 功能选择 (Select)" })
+      -- 官方 operator 原样保留（go/goo = 发送范围/行到 OpenCode）
+      vim.keymap.set({ "n", "x" }, "go", function() return require("opencode").operator("@this") end, { desc = "OpenCode: 发送范围 (Send range)", expr = true })
+      vim.keymap.set({ "n" }, "goo", function() return require("opencode").operator("@this") .. "_" end, { desc = "OpenCode: 发送当前行 (Send line)", expr = true })
+    end,
   },
 }
