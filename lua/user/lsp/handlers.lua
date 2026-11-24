@@ -38,28 +38,30 @@ vim.api.nvim_create_autocmd("LspAttach", {
     end
 
     -- Buffer-local keymaps
-    local opts = { noremap = true, silent = true, buffer = bufnr }
-
-    vim.keymap.set("n", "gD", vim.lsp.buf.declaration, opts)
-    vim.keymap.set("n", "gd", vim.lsp.buf.definition, opts)
-    vim.keymap.set("n", "K", function()
-      vim.lsp.buf.hover({ border = "rounded" })
-    end, vim.tbl_extend("force", opts, { desc = "Hover" }))
-    vim.keymap.set("n", "gi", vim.lsp.buf.implementation, opts)
-    if client.server_capabilities.signatureHelpProvider then
-      vim.keymap.set("n", "<C-k>", function()
-        vim.lsp.buf.signature_help({ border = "rounded" })
-      end, opts)
+    -- 纪律:desc 必填(经 map() 强制)。Neovim 内置自带 desc 的键位
+    -- (grn/gra/grx/grr/gri/grt/gO、[d/]d、<C-W>d 等)勿重复映射。
+    local function map(lhs, rhs, desc)
+      vim.keymap.set("n", lhs, rhs, { buffer = bufnr, silent = true, desc = desc })
     end
-    vim.keymap.set("n", "gr", vim.lsp.buf.references, opts)
-    vim.keymap.set("n", "[d", function()
-      vim.diagnostic.goto_prev({ border = "rounded" })
-    end, opts)
-    vim.keymap.set("n", "gl", vim.diagnostic.open_float, opts)
-    vim.keymap.set("n", "]d", function()
-      vim.diagnostic.goto_next({ border = "rounded" })
-    end, opts)
-    vim.keymap.set("n", "<leader>q", vim.diagnostic.setloclist, opts)
+
+    map("gD", vim.lsp.buf.declaration, "Go to declaration")
+    map("gd", vim.lsp.buf.definition, "Go to definition")
+    map("gl", vim.diagnostic.open_float, "Line diagnostics")
+    map("[d", function()
+      vim.diagnostic.jump({ count = -vim.v.count1, float = { border = "rounded" } })
+    end, "Prev diagnostic")
+    map("]d", function()
+      vim.diagnostic.jump({ count = vim.v.count1, float = { border = "rounded" } })
+    end, "Next diagnostic")
+    map("<leader>q", vim.diagnostic.setloclist, "Diagnostics to loclist")
+    map("K", function()
+      vim.lsp.buf.hover({ border = "rounded" })
+    end, "Hover")
+    if client.server_capabilities.signatureHelpProvider then
+      map("<C-k>", function()
+        vim.lsp.buf.signature_help({ border = "rounded" })
+      end, "Signature help")
+    end
 
     -- 补全交给 blink.cmp（不再使用内置自动补全，避免两个菜单同时弹出）
     -- if client:supports_method("textDocument/completion") then
